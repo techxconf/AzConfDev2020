@@ -1,0 +1,41 @@
+data:
+  AzureWebJobsStorage: <base64-encoded-storage-connection-string>
+  FUNCTIONS_WORKER_RUNTIME: ZG90bmV0
+apiVersion: v1
+kind: Secret
+metadata:
+  name: working-hello-keda
+  namespace: default
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: queue-job
+  namespace: default
+spec:
+  pollingInterval: 5
+  maxReplicaCount: 10
+  jobTargetRef:
+    parallelism: 1
+    completions: 1
+    backoffLimit: 6
+    template:
+      spec:
+        containers:
+        - name: working-hello-keda
+          image: erwinstaal/keda-console-job:1.0
+          imagePullPolicy: Always
+          env:
+            - name: AzureWebJobsStorage
+              valueFrom:
+                secretKeyRef:
+                  name: working-hello-keda
+                  key: AzureWebJobsStorage
+            - name: QUEUE_NAME
+              value: job-items
+  triggers:
+  - type: azure-queue
+    metadata:
+      queueName: job-items
+      queueLength: '1'
+      connectionFromEnv: AzureWebJobsStorage # Based on secret
